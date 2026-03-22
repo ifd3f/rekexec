@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -x
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Please ensure you are running as root/sudo"
+  exit 1
+fi
+
+if ! command -v kexec && command -v base64 && command -v cpio 2>&1 >/dev/null ; then
+  echo "Please ensure kexec-tools, base64, and cpio are installed"
+  exit 1
+fi
+
+base64 -d <<912367yuiogrjklhsdijlslksdawuil234ui > r

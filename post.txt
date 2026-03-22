@@ -1,0 +1,6 @@
+912367yuiogrjklhsdijlslksdawuil234ui
+
+cpio -uidv < r "k" > k
+
+kexec --load k --initrd r --reuse-cmdline
+kexec --exec

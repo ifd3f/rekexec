@@ -1,0 +1,6 @@
+*.fd
+*.img
+*.iso
+*.qcow2
+result
+result-*
