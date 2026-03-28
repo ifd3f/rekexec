@@ -10,20 +10,32 @@
     {
       packages.x86_64-linux = rec {
 
-        kernel = pkgs.linuxPackages.kernel;
+        linuxPackages = pkgs.linuxPackages;
+        kernel = linuxPackages.kernel;
 
         rekexec-init = pkgs.writeScriptBin "init" ''
           #!/bin/sh
           mkdir -p /proc
           mount -t proc proc /proc
+          mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
+
+          echo ':cpio:M::\x30\x37\x30\x37\x30\x31::/bin/cpio-interpreter:' \
+            > /proc/sys/fs/binfmt_misc/register
 
           find / | grep -v /r | grep -v /proc | cpio -vo -H newc > /r
 
-          kexec --load /k --initrd /r --reuse-cmdline
+          chmod +x /r
+          exec /r
+        '';
+
+        cpio-interpreter = pkgs.writeScriptBin "cpio-interpreter" ''
+          #!/bin/sh
+
+          kexec --load /k --initrd $1 --reuse-cmdline
           kexec --exec
         '';
 
-        initramfs-inner = pkgs.runCommand "initramfs-inner" {} ''
+        initramfs-inner = pkgs.runCommand "initramfs-inner" { } ''
           mkdir -p $out
           cp ${rekexec-init}/bin/init $out/init
           chmod +x $out/init
@@ -31,9 +43,10 @@
           mkdir -p $out/bin
           cp -r ${pkgs.pkgsStatic.busybox}/bin/* $out/bin
           cp -r ${pkgs.pkgsStatic.kexec-tools}/bin/* $out/bin
+          cp ${cpio-interpreter}/bin/* $out/bin
         '';
 
-        initramfs = pkgs.runCommand "kexec-initramfs" { buildInputs = [pkgs.cpio];} ''
+        initramfs = pkgs.runCommand "kexec-initramfs" { buildInputs = [ pkgs.cpio ]; } ''
           mkdir -p $out
           ( cd ${initramfs-inner} && find . | cpio -o -H newc ) > $out/initramfs.cpio
         '';
@@ -48,7 +61,7 @@
             -no-reboot
         '';
 
-        ctf = pkgs.runCommand "ctf" {} ''
+        ctf = pkgs.runCommand "ctf" { } ''
           mkdir $out
           cat ${./pre.txt} <(base64 < ${initramfs}/initramfs.cpio) ${./post.txt} > $out/ctf.sh
         '';
